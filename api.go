@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-
-	"github.com/gorilla/mux"
 )
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
@@ -42,7 +40,7 @@ func NewAPIServer(listenAddr string) *APIServer {
 }
 
 func (s *APIServer) Run() {
-	router := mux.NewRouter()
+	router := http.NewServeMux()
 
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
 	router.HandleFunc("/account/{id}", makeHTTPHandleFunc(s.handleGetAccount))
