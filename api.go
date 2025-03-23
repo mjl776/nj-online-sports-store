@@ -23,6 +23,10 @@ type ApiError struct {
 	Error string
 }
 
+var (
+	client *mongo.Client
+	err    error
+)
 
 func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
