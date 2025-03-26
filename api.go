@@ -19,23 +19,10 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 
 type apiFunc func(http.ResponseWriter, *http.Request) error
 
-type ApiError struct {
-	Error string
-}
-
 var (
 	client *mongo.Client
 	err    error
 )
-
-func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := f(w, r); err != nil {
-			// handle the error
-			WriteJSON(w, http.StatusBadRequest, ApiError{Error: err.Error()})
-		}
-	}
-}
 
 type APIServer struct {
 	listenAddr string
@@ -75,8 +62,8 @@ func (s *APIServer) Run() {
 
 	router := http.NewServeMux()
 
-	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
-	router.HandleFunc("/account/{id}", makeHTTPHandleFunc(s.handleGetAccount))
+	router.HandleFunc("/account", s.handleAccount)
+	router.HandleFunc("/account/{id}", s.handleGetAccount)
 
 	log.Println("JSON API server running on port: ", s.listenAddr)
 
@@ -88,31 +75,36 @@ func (s *APIServer) Run() {
 // this ensures we actively chec, and look for errors rather than
 // relying on error handlers
 
-func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error{
+func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) {
+
+	if err != nil {
+		return
+	}
+
 	if r.Method == "GET" {
-		return s.handleGetAccount(w, r);
+		s.handleGetAccount(w, r);
 	}
 
 	if r.Method == "POST" {
-		return s.handleCreateAccount(w, r);
+		s.handleCreateAccount(w, r);
 	}
 
 	if r.Method == "DELETE" {
-		return s.handleDeleteAccount(w, r);
+		s.handleDeleteAccount(w, r);
 	}
 
-	return fmt.Errorf("method not allowed %s", r.Method);
+	fmt.Errorf("method not allowed %s", r.Method);
 }
 
-func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
+func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) {
 	account := NewAccount("john", "lee");
-	return WriteJSON(w, http.StatusOK, account);
+	WriteJSON(w, http.StatusOK, account);
 }
 
-func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
+	// Will be created
 }
 
-func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
+	// Will be created
 }
