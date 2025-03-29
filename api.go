@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"context"
 	"os"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -20,8 +23,7 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 type apiFunc func(http.ResponseWriter, *http.Request) error
 
 var (
-	client *mongo.Client
-	err    error
+	mongoClient *mongo.Client
 )
 
 type APIServer struct {
@@ -46,40 +48,45 @@ func (s *APIServer) connectToDatabase() {
 	// Create a new client and connect to the server
 	client, err := mongo.Connect(opts)
 
+	mongoClient = client
+
 	if err != nil {
 		panic(err)
 	}
 
-	defer func() {
-		if err = client.Disconnect(context.TODO()); err != nil {
-			panic(err)
-		}
-	}()
+	// Send a ping to confirm a successful connection
+	var result bson.M
+	if err := client.Database("nj-online-sports-db").RunCommand(context.TODO(), bson.D{{"ping", 1}}).Decode(&result); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
+
+}
+
+func (s *APIServer) disconnectFromDatabase() {
+    if err := mongoClient.Disconnect(context.TODO()); err != nil {
+        panic(err)
+    }
 }
 
 func (s *APIServer) Run() {
-	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
 
 	router := http.NewServeMux()
 
 	router.HandleFunc("/account", s.handleAccount)
 	router.HandleFunc("/account/{id}", s.handleGetAccount)
-
 	log.Println("JSON API server running on port: ", s.listenAddr)
-
 
 	http.ListenAndServe(s.listenAddr, router);
 }
 
-// functions return an error to actively promote error handling
-// this ensures we actively chec, and look for errors rather than
-// relying on error handlers
-
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) {
 
-	if err != nil {
-		return
-	}
+	// error handling in another PR
+	// if err != nil {
+	// 	return
+	// }
 
 	if r.Method == "GET" {
 		s.handleGetAccount(w, r);
@@ -97,7 +104,38 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) {
-	account := NewAccount("john", "lee");
+
+	// The get Account responsibility should be retrieving and looking up a account,
+	// given the project is in the early stages, this will eventuall be replaced by a different
+	// functionality involving the login process
+
+	scanner := bufio.NewScanner(os.Stdin)
+
+	fmt.Println("Enter your first name!")
+	scanner.Scan();
+	firstName := scanner.Text()
+
+	fmt.Println("Enter your last name!")
+	scanner.Scan()
+	lastName := scanner.Text()
+
+	account := NewAccount(firstName, lastName)
+	fmt.Println("this is account", account);
+
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "Error during scan:", err)
+		return
+	}
+
+	collection := mongoClient.Database("nj-online-sports-db").Collection("accounts")
+
+	_, err := collection.InsertOne(context.Background(), account)
+
+	if err != nil {
+		log.Fatal("MongoDB insertion failed:", err)
+		return
+	}
+
 	WriteJSON(w, http.StatusOK, account);
 }
 
